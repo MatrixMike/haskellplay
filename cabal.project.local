@@ -1,0 +1,7 @@
+
+package *
+  ghc-options: -j3
+
+package haskellplay
+  ghc-options: -j3
+  optimization: 0
