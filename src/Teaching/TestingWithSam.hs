@@ -3,10 +3,8 @@
 
 import Test.QuickCheck
 import Test.Hspec
--- import Tasty
 
-import System.Exit
-import Control.Monad
+-- import Tasty
 
 
 -- Hasura:

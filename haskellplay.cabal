@@ -28,7 +28,12 @@ library haskellplay-lib
                        time,
                        conduit,
                        async,
-                       resourcet
+                       resourcet,
+                       these,
+                       semialign,
+                       stm,
+                       containers,
+                       profunctors
 
 executable haskellplay-exe
   main-is:             Main.hs

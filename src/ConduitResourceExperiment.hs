@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 module ConduitResourceExperiment where
 
@@ -8,6 +9,9 @@ import Control.Concurrent hiding (yield)
 import Control.Concurrent.Async
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Resource
+import Data.Align
+import Data.These
+import Data.Foldable (for_)
 
 main :: IO ()
 main = runConduitRes do a .| b
@@ -31,3 +35,10 @@ b :: (Monad m, MonadIO m) => ConduitT Int o m ()
 b = do
     x <- await
     liftIO do print x
+
+changes :: (Monad m, Foldable t, Semialign t) => t b -> ConduitT (t b) (These b b) m ()
+changes f = do
+    t <- await
+    for_ t \t' -> do
+        for_ (align f t') yield
+        changes t'
