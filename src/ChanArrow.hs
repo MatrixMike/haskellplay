@@ -53,13 +53,12 @@ run c = do
     writeChan i Nothing
     return a
 
-source :: IO o -> Charrow Void o
+source :: ((o -> IO ()) -> IO a2) -> Charrow Void o
 source m = Charrow do
     i <- newChan
     o <- newChan
     a <- async do
-        r <- m
-        writeChan o (Just r)
+        m (writeChan o . Just)
         writeChan o Nothing
     return (i,o,a)
 
