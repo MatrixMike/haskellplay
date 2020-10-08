@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE BlockArguments #-}
@@ -11,6 +12,7 @@
 --   * [x] Recovery/Retry capability
 --   * [x] Fix await deadlock
 --   * [x] Generic Chan functions, then specific newtype
+--   * [x] Stop using list functions
 --   * [x] Different transport options, buffered, etc.
 --   * [ ] Different transports for sections of the graph
 --   * [ ] Allow configurable parallelism
@@ -23,14 +25,12 @@ import Control.Arrow
 import Control.Concurrent
 import Control.Category
 import Control.Concurrent.Async (cancel, wait, Async, async)
-import Data.Maybe (isNothing, catMaybes)
 import Data.Void
-import Control.Applicative (Applicative(liftA2))
 import Data.Foldable (for_)
 import Control.Exception (Exception, SomeException, try)
 import GHC.Natural (Natural)
 import System.Random
-import Control.Monad (replicateM)
+import Control.Monad (replicateM_, when, replicateM)
 import Data.Time (NominalDiffTime)
 import Data.Map (fromList)
 import Data.List (tails)
@@ -39,23 +39,32 @@ import Data.List (tails)
 
 main :: IO ()
 main = do
-    runWait @Chan $ sourceList [1::Int ..10] >>> delay 0.3 >>> sinkPrint
-    runWait @Chan test0
-    runWait @Chan test1
-    runWait @Chan test2
-    runWait @Chan test3
-    runWait @Chan test4
-    runWait @Chan test5
-    runWait @Chan (id >>> id)
-    runWait @Chan id
-    runWait @Chan $ sourceList [1 :: Int ..5] >>> withPrevious >>> sinkPrint
-    runWait @Chan ( sourceIO (\cb -> replicateM 3 do cb (5 :: Int))
-        >>> delay 1
-        >>> arr show
-        >>> sinkPrint
-        )
 
-    runWait @Chan $ sourceList [1::Int ..] >>> takeC (2::Int) >>> sinkPrint
+    -- runWait @Chan $ sourceList [1..5] >>> delay 0.5 >>> sinkPrint
+
+    -- c <- newChan
+    -- writeList2Chan c (map Just [1::Int ..10] ++ [Nothing])
+    -- yankAll' c \x -> do
+    --     print x
+
+    -- runWait @Chan $ sourceList [1::Int ..5] >>> sinkPrint
+    -- runWait @Chan $ sourceList [1::Int ..10] >>> delay 0.3 >>> sinkPrint
+    -- runWait @Chan test0
+    -- runWait @Chan test1
+    -- runWait @Chan test2
+    -- runWait @Chan test3
+    -- runWait @Chan test4
+    -- runWait @Chan test5
+    -- runWait @Chan (id >>> id)
+    -- runWait @Chan id
+    -- runWait @Chan $ sourceList [1 :: Int ..5] >>> withPrevious >>> sinkPrint
+    -- runWait @Chan ( sourceIO (\cb -> replicateM 3 do cb (5 :: Int))
+    --     >>> delay 1
+    --     >>> arr show
+    --     >>> sinkPrint
+    --     )
+
+    runWait @Chan $ sourceList [1::Int ..1000] >>> takeC (2::Int) >>> sinkPrint
     runWait pipeline
     return ()
 
@@ -66,7 +75,7 @@ test1 :: Transport t => Churro t Void Void
 test1 = sourceList [1::Int,2] >>> arr succ >>> arr show >>> sinkIO putStrLn
 
 test2 :: Transport t => Churro t Void Void
-test2 = sourceList [1::Int ..11] >>> prog >>> sinkPrint
+test2 = sourceList [1::Int ..11] >>> prog
     where
     prog = proc i -> do
         j <- arr succ  -< i
@@ -74,8 +83,8 @@ test2 = sourceList [1::Int ..11] >>> prog >>> sinkPrint
         l <- arr succ  -< j
         m <- arr (> 5) -< j
         n <- process (\x@(_x,_y,z) -> print x >> return z) -< (k,l,m)
-
-        arr not -< n
+        o <- arr not -< n
+        sinkPrint -< o
 
 test3 :: Transport t => Churro t Void Void
 test3 = sourceList [1 :: Int] >>> process print >>> sinkPrint
@@ -92,10 +101,13 @@ test5 = sourceList [1 :: Int ..10] >>> arr (0 :: Natural,) >>> processRetry' @So
             then return x
             else error ("oops! " <> show x)
 
-type ChurroChan = Churro Chan
-
 pipeline :: ChurroChan Void Void
-pipeline = sourceList maps >>> takeC (10 :: Int) >>> delay 0.5 >>> withPrevious >>> sinkPrint
+pipeline = sourceList (take 10 maps)
+        >>> withPrevious
+        >>> delay 0.5
+        >>> takeC (10 :: Int)
+        >>> delay 0.5
+        >>> sinkPrint
     where
     maps    = map fromList $ zipWith zip updates updates
     updates = map (take 5) (tails [0 :: Int ..])
@@ -134,7 +146,7 @@ sourceIO cb =
         yeet o Nothing
 
 sinkIO :: Transport t => (o -> IO ()) -> Churro t o Void
-sinkIO cb = buildChurro \i _o -> mapM_ cb =<< c2l i
+sinkIO cb = buildChurro \i _o -> yankAll i cb
 
 sinkPrint :: (Transport t, Show a) => Churro t a Void
 sinkPrint = sinkIO print
@@ -142,11 +154,16 @@ sinkPrint = sinkIO print
 process :: Transport t => (a -> IO b) -> Churro t a b
 process f = processN (fmap pure . f)
 
+processPrint :: (Transport t, Show b) => Churro t b b
+processPrint = process \x -> print x >> return x
+
+processDebug :: (Transport t, Show b) => String -> Churro t b b
+processDebug d = process \x -> putStrLn ("Debugging [" <> d <> "]: " <> show x) >> return x
+
 processN :: Transport t => (a -> IO [b]) -> Churro t a b
 processN f =
     buildChurro \i o -> do
-        cs <- c2l i
-        for_ cs \x -> mapM_ (yeet o . Just) =<< f x
+        yankAll i \x -> do mapM_ (yeet o . Just) =<< f x
         yeet o Nothing
 
 justs :: Transport t => Churro t (Maybe a) a
@@ -160,15 +177,14 @@ rights = mapN (either (const []) pure)
 
 takeC :: (Transport t, Integral n) => n -> Churro t a a
 takeC n = buildChurro \i o -> do
-    l <- replicateM (fromIntegral n) (yank i)
-    yeetList o l
+    replicateM_ (fromIntegral n) (yank i >>= yeet o)
     yeet o Nothing
 
 mapN :: Transport t => (a -> [b]) -> Churro t a b
 mapN f = processN (return . f)
 
 delay :: Transport t => NominalDiffTime -> Churro t a a
-delay = delayMicro . ceiling @Double . fromRational . (*100000) . toRational
+delay = delayMicro . ceiling @Double . fromRational . (*1000000) . toRational
 
 delayMicro :: Transport t => Int -> Churro t a a
 delayMicro d = process \x -> do
@@ -177,9 +193,15 @@ delayMicro d = process \x -> do
 
 withPrevious :: Transport t => Churro t a (a,a)
 withPrevious = buildChurro \i o -> do
-    l <- c2l i
-    yeetList o (fmap Just $ zip l (tail l))
+    prog Nothing i o 
     yeet o Nothing
+    where
+    prog x i o = do
+        y <- yank i
+        case (x,y) of
+            (Just x', Just y') -> yeet o (Just (x',y')) >> prog y i o
+            (Nothing, Just y') -> prog (Just y') i o
+            _                  -> return ()
 
 -- | Requeue an item if it fails.
 --   Note: There is an edgecase with Chan transport where a queued retry may not execute
@@ -190,20 +212,13 @@ processRetry maxRetries f = arr (0,) >>> processRetry' @SomeException maxRetries
 processRetry' :: (Exception e, Transport t) => Natural -> (a -> IO o) -> Churro t (Natural, a) (Either e o)
 processRetry' maxRetries f =
     buildChurro \i o -> do
-        cs <- c2l' i
-        for_ cs \x -> do
-            -- TODO: Figure out how to eliminate the case naturally
-            case x of
-                Nothing -> yeet o Nothing
-                Just (n, y) -> do
-                    r <- try do f y
-                    case r of
-                        Right _ -> yeet o (Just r)
-                        Left  err
-                            | n >= maxRetries -> return ()
-                            | otherwise       -> do
-                                yeet i (Just (succ n, y))
-                                yeet o (Just (Left err))
+        yankAll i \(n, y) -> do
+            r <- try do f y
+            yeet o (Just r)
+            case r of
+                Right _ -> return ()
+                Left  _ -> do when (n >= maxRetries) do yeet i (Just (succ n, y))
+        yeet o Nothing
 
 -- Data, Classes and Instances
 
@@ -213,16 +228,28 @@ class Transport t where
     flex     :: IO (t a)
     yank     :: t a -> IO a
     yeet     :: t a -> a -> IO ()
-    yankList :: t a -> IO [a]
-
-yeetList :: (Foldable t1, Transport t2) => t2 a -> t1 a -> IO ()
-yeetList t = mapM_ (yeet t)
 
 instance Transport Chan where
     flex = newChan
     yank = readChan
     yeet = writeChan
-    yankList = getChanContents
+
+type ChurroChan = Churro Chan
+
+yeetList :: (Foldable t1, Transport t2) => t2 a -> t1 a -> IO ()
+yeetList t = mapM_ (yeet t)
+
+yankAll :: Transport t => t (Maybe i) -> (i -> IO a) -> IO ()
+yankAll c f = do
+    x <- yank c
+    case x of
+        Nothing -> return ()
+        Just y  -> f y >> yankAll c f
+
+yankAll' :: Transport t => t (Maybe a) -> (Maybe a -> IO b) -> IO b
+yankAll' c f = do
+    yankAll c (f . Just)
+    f Nothing
 
 instance Transport t => Functor (Churro t a) where
     fmap f c = Churro do
@@ -238,15 +265,32 @@ instance Transport t => Category (Churro t) where
     g . f = Churro do
         (fi, fo, fa) <- runChurro f
         (gi, go, ga) <- runChurro g
-
-        a <- async do
-            c2c id fo gi
+        a <- async do c2c id fo gi
+        b <- async do
             wait ga
             cancel fa
-            yeet gi Nothing
-            yeet fi Nothing
+            wait a
+        return (fi, go, b)
 
-        return (fi, go, a)
+instance Transport t => Applicative (Churro t Void) where
+    pure x  = sourceList [x]
+    f <*> g = buildChurro \_i o -> do
+        (_fi, fo, fa) <- runChurro f
+        (_gi, go, ga) <- runChurro g
+
+        let
+            prog :: IO ()
+            prog = do
+                fx <- yank fo
+                gx <- yank go
+                case (fx, gx) of
+                    (Just f', Just g') -> (yeet o $ Just (f' g')) >> prog
+                    _                  -> return ()
+
+        prog
+        yeet o Nothing
+        wait fa
+        wait ga
 
 instance Transport t => Arrow (Churro t) where
     arr = flip fmap id
@@ -255,41 +299,35 @@ instance Transport t => Arrow (Churro t) where
         (i,o,a) <- runChurro c
         i'      <- flex
         o'      <- flex
-        is      <- c2l' i'
-        os      <- c2l' o
 
-        a'   <- async do yeetList i (map (fmap fst) is)
-        a''  <- async do yeetList o' (zipWith (liftA2 (,)) os (map (fmap snd) is))
-        a''' <- async do
+        let go = do
+                is <- yank i'
+                yeet i (fmap fst is)
+
+                os <- yank o
+                yeet o' $ (,) <$> os <*> fmap snd is
+
+                case (is, os) of
+                    (Just _, Just _) -> go
+                    _ -> return ()
+
+        a' <- async do
+            go
+            yeet o' Nothing
             wait a
-            wait a'
-            wait a''
 
-        return (i',o',a''')
+        return (i',o',a')
 
 -- Transport Helpers
 
-l2c :: Transport t => t (Maybe a) -> [a] -> IO ()
-l2c c = yeetList c . fmap Just
-
-c2l :: Transport t => t (Maybe a) -> IO [a]
-c2l = fmap catMaybes . c2l'
-
-c2l' :: Transport t => t (Maybe a) -> IO [Maybe a]
-c2l' c = takeUntil isNothing <$> yankList c
-
-c2c :: Transport t => (a1 -> a2) -> t (Maybe a1) -> t (Maybe a2) -> IO (Async ())
-c2c f i o = do
-    l <- c2l i
-    async do
-        l2c o (fmap f l)
-        yeet o Nothing
+c2c :: Transport t => (a1 -> a2) -> t (Maybe a1) -> t (Maybe a2) -> IO ()
+c2c f i o = yankAll' i (yeet o . fmap f)
 
 -- Other Helpers
 
-takeUntil :: (a -> Bool) -> [a] -> [a]
-takeUntil _ []     = []
-takeUntil p (x:xs)
+takeUptoAndIncluding :: (a -> Bool) -> [a] -> [a]
+takeUptoAndIncluding _ []     = []
+takeUptoAndIncluding p (x:xs)
     | p x       = [x]
-    | otherwise = x : takeUntil p xs
+    | otherwise = x : takeUptoAndIncluding p xs
 
