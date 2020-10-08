@@ -32,6 +32,8 @@ import System.Random
 import Control.Monad (replicateM)
 import Data.Time (NominalDiffTime)
 
+-- Tests
+
 main :: IO ()
 main = do
     runWait @Chan $ sourceList [1::Int ..10] >>> delay 0.3 >>> sinkPrint
@@ -84,26 +86,6 @@ test5 = sourceList [1 :: Int ..10] >>> arr (0 :: Natural,) >>> processRetry' @So
         if x < 3 || r > 5
             then return x
             else error ("oops! " <> show x)
-
-
--- Data
-
-data Churro t i o = Churro { runChurro :: IO (t (Maybe i), t (Maybe o), Async ()) }
-
-class Transport t where
-    flex     :: IO (t a)
-    yank     :: t a -> IO a
-    yeet     :: t a -> a -> IO ()
-    yankList :: t a -> IO [a]
-    yeetList :: t a -> [a] -> IO ()
-    yeetList t = mapM_ (yeet t)
-
-instance Transport Chan where
-    flex = newChan
-    yank = readChan
-    yeet = writeChan
-    yankList = getChanContents
-    yeetList = writeList2Chan
 
 -- Runners
 
@@ -206,7 +188,24 @@ processRetry' maxRetries f =
                                 yeet i (Just (succ n, y))
                                 yeet o (Just (Left err))
 
--- Instances
+-- Data, Classes and Instances
+
+data Churro t i o = Churro { runChurro :: IO (t (Maybe i), t (Maybe o), Async ()) }
+
+class Transport t where
+    flex     :: IO (t a)
+    yank     :: t a -> IO a
+    yeet     :: t a -> a -> IO ()
+    yankList :: t a -> IO [a]
+    yeetList :: t a -> [a] -> IO ()
+    yeetList t = mapM_ (yeet t)
+
+instance Transport Chan where
+    flex = newChan
+    yank = readChan
+    yeet = writeChan
+    yankList = getChanContents
+    yeetList = writeList2Chan
 
 instance Transport t => Functor (Churro t a) where
     fmap f c = Churro do
