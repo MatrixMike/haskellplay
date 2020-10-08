@@ -141,12 +141,21 @@ processN f =
 processRetry :: Natural -> (i -> IO o) -> Charrow i o
 processRetry maxRetries f = arr (0,) >>> processRetry' @SomeException maxRetries f >>> rights
 
+justs :: Charrow (Maybe a) a
+justs = mapN (maybe [] pure)
+
+lefts :: Charrow (Either a b) a
+lefts = mapN (either pure (const []))
+
 rights :: Charrow (Either a b) b
 rights = mapN (either (const []) pure)
 
 mapN :: (a -> [b]) -> Charrow a b
 mapN f = processN (return . f)
 
+-- | Requeue an item if it fails.
+--   Note: There is an edgecase with Chan transport where a queued retry may not execute
+--         if a source completes and finalises before the item is requeued.
 processRetry' :: Exception e => Natural -> (a -> IO o) -> Charrow (Natural, a) (Either e o)
 processRetry' maxRetries f =
     buildCharrow \i o -> do
