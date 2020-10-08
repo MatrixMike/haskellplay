@@ -33,7 +33,8 @@ library haskellplay-lib
                        semialign,
                        stm,
                        containers,
-                       profunctors
+                       profunctors,
+                       random
 
 executable haskellplay-exe
   main-is:             Main.hs
