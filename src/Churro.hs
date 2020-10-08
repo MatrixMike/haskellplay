@@ -30,21 +30,25 @@ import Control.Exception (Exception, SomeException, try)
 import GHC.Natural (Natural)
 import System.Random
 import Control.Monad (replicateM)
+import Data.Time (NominalDiffTime)
 
 main :: IO ()
 main = do
-    run @Chan test0 >>= wait
-    run @Chan test1 >>= wait
-    run @Chan test2 >>= wait
-    run @Chan test3 >>= wait
-    run @Chan test4 >>= wait
-    run @Chan test5 >>= wait
-    run @Chan (id >>> id) >>= wait
-    run @Chan id >>= wait
-    run @Chan ( sourceIO (\cb -> replicateM 3 do cb (5 :: Int) >> threadDelay 1000000)
-          >>> arr show
-          >>> sinkIO print
-        ) >>= wait
+    runWait @Chan $ sourceList [1::Int ..10] >>> delay 0.3 >>> sinkPrint
+    runWait @Chan test0
+    runWait @Chan test1
+    runWait @Chan test2
+    runWait @Chan test3
+    runWait @Chan test4
+    runWait @Chan test5
+    runWait @Chan (id >>> id)
+    runWait @Chan id
+    runWait @Chan $ sourceList [1 :: Int ..5] >>> withPrevious >>> sinkPrint
+    runWait @Chan ( sourceIO (\cb -> replicateM 3 do cb (5 :: Int))
+        >>> delay 1
+        >>> arr show
+        >>> sinkPrint
+        )
 
     return ()
 
@@ -55,7 +59,7 @@ test1 :: Transport t => Churro t Void Void
 test1 = sourceList [1::Int,2] >>> arr succ >>> arr show >>> sinkIO putStrLn
 
 test2 :: Transport t => Churro t Void Void
-test2 = sourceList [1::Int ..11] >>> prog >>> sinkIO print
+test2 = sourceList [1::Int ..11] >>> prog >>> sinkPrint
     where
     prog = proc i -> do
         j <- arr succ  -< i
@@ -67,13 +71,13 @@ test2 = sourceList [1::Int ..11] >>> prog >>> sinkIO print
         arr not -< n
 
 test3 :: Transport t => Churro t Void Void
-test3 = sourceList [1 :: Int] >>> process print >>> sinkIO print
+test3 = sourceList [1 :: Int] >>> process print >>> sinkPrint
 
 test4 :: Transport t => Churro t Void Void
-test4 = sourceList [1 :: Int] >>> (process print &&& process print) >>> sinkIO print
+test4 = sourceList [1 :: Int] >>> (process print &&& process print) >>> sinkPrint
 
 test5 :: Transport t => Churro t Void Void
-test5 = sourceList [1 :: Int ..10] >>> arr (0 :: Natural,) >>> processRetry' @SomeException 20 flakeyThing >>> sinkIO print
+test5 = sourceList [1 :: Int ..10] >>> arr (0 :: Natural,) >>> processRetry' @SomeException 20 flakeyThing >>> sinkPrint
     where
     flakeyThing x = do
         r <- randomRIO (1::Int,10)
@@ -101,7 +105,10 @@ instance Transport Chan where
     yankList = getChanContents
     yeetList = writeList2Chan
 
--- Top level
+-- Runners
+
+runWait :: Transport t => Churro t Void Void -> IO ()
+runWait x = wait =<< run x
 
 run :: Transport t => Churro t Void Void -> IO (Async ())
 run = run'
@@ -112,6 +119,8 @@ run' c = do
     -- Compose an empty sourceList to ensure termination
     (_i,_o,a) <- runChurro (sourceList [] >>> c)
     return a
+
+-- Library
 
 buildChurro :: Transport t => (t (Maybe i) -> t (Maybe o) -> IO ()) -> Churro t i o
 buildChurro cb = Churro do
@@ -134,25 +143,18 @@ sinkIO cb =
     buildChurro \i _o -> do
         mapM_ cb =<< c2l i
 
+sinkPrint :: (Transport t, Show a) => Churro t a Void
+sinkPrint = sinkIO print
+
 process :: Transport t => (a -> IO b) -> Churro t a b
-process f =
-    buildChurro \i o -> do
-        cs <- c2l' i
-        for_ cs \x -> do
-            -- TODO: Figure out how to eliminate the case naturally
-            case x of
-                Nothing -> yeet o Nothing
-                Just y  -> yeet o . Just =<< f y
+process f = processN (fmap pure . f)
 
 processN :: Transport t => (a -> IO [b]) -> Churro t a b
 processN f =
     buildChurro \i o -> do
-        cs <- c2l' i
-        for_ cs \x -> do
-            -- TODO: Figure out how to eliminate the case naturally
-            case x of
-                Nothing -> yeet o Nothing
-                Just y  -> mapM_ (yeet o . Just) =<< f y
+        cs <- c2l i
+        for_ cs \x -> mapM_ (yeet o . Just) =<< f x
+        yeet o Nothing
 
 processRetry :: Transport t => Natural -> (i -> IO o) -> Churro t i o
 processRetry maxRetries f = arr (0,) >>> processRetry' @SomeException maxRetries f >>> rights
@@ -168,6 +170,20 @@ rights = mapN (either (const []) pure)
 
 mapN :: Transport t => (a -> [b]) -> Churro t a b
 mapN f = processN (return . f)
+
+delay :: Transport t => NominalDiffTime -> Churro t a a
+delay = delayMicro . ceiling @Double . fromRational . (*100000) . toRational
+
+delayMicro :: Transport t => Int -> Churro t a a
+delayMicro d = process \x -> do
+    threadDelay d
+    return x
+
+withPrevious :: Transport t => Churro t a (a,a)
+withPrevious = buildChurro \i o -> do
+    l <- c2l i
+    yeetList o (fmap Just $ zip l (tail l))
+    yeet o Nothing
 
 -- | Requeue an item if it fails.
 --   Note: There is an edgecase with Chan transport where a queued retry may not execute
@@ -233,7 +249,7 @@ instance Transport t => Arrow (Churro t) where
 
         return (i',o',a''')
 
--- Helpers
+-- Transport Helpers
 
 l2c :: Transport t => t (Maybe a) -> [a] -> IO ()
 l2c c = yeetList c . fmap Just
@@ -244,15 +260,17 @@ c2l = fmap catMaybes . c2l'
 c2l' :: Transport t => t (Maybe a) -> IO [Maybe a]
 c2l' c = takeUntil isNothing <$> yankList c
 
-takeUntil :: (a -> Bool) -> [a] -> [a]
-takeUntil _ []     = []
-takeUntil p (x:xs)
-    | p x       = [x]
-    | otherwise = x : takeUntil p xs
-
 c2c :: Transport t => (a1 -> a2) -> t (Maybe a1) -> t (Maybe a2) -> IO ()
 c2c f i o = do
     l <- c2l i
     l2c o (fmap f l)
     yeet o Nothing
+
+-- Other Helpers
+
+takeUntil :: (a -> Bool) -> [a] -> [a]
+takeUntil _ []     = []
+takeUntil p (x:xs)
+    | p x       = [x]
+    | otherwise = x : takeUntil p xs
 
