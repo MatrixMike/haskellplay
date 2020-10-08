@@ -14,6 +14,7 @@
 --   * [x] Different transport options, buffered, etc.
 --   * [ ] Different transports for sections of the graph
 --   * [ ] Allow configurable parallelism
+--   * [ ] Early termination if downstream consumer completes
 -- 
 module Churro where
 
@@ -21,7 +22,7 @@ import Prelude hiding (id, (.))
 import Control.Arrow
 import Control.Concurrent
 import Control.Category
-import Control.Concurrent.Async (wait, Async, async)
+import Control.Concurrent.Async (cancel, wait, Async, async)
 import Data.Maybe (isNothing, catMaybes)
 import Data.Void
 import Control.Applicative (Applicative(liftA2))
@@ -31,6 +32,8 @@ import GHC.Natural (Natural)
 import System.Random
 import Control.Monad (replicateM)
 import Data.Time (NominalDiffTime)
+import Data.Map (fromList)
+import Data.List (tails)
 
 -- Tests
 
@@ -52,6 +55,8 @@ main = do
         >>> sinkPrint
         )
 
+    runWait @Chan $ sourceList [1::Int ..] >>> takeC (2::Int) >>> sinkPrint
+    runWait pipeline
     return ()
 
 test0 :: Transport t => Churro t Void Void
@@ -87,6 +92,14 @@ test5 = sourceList [1 :: Int ..10] >>> arr (0 :: Natural,) >>> processRetry' @So
             then return x
             else error ("oops! " <> show x)
 
+type ChurroChan = Churro Chan
+
+pipeline :: ChurroChan Void Void
+pipeline = sourceList maps >>> takeC (10 :: Int) >>> delay 0.5 >>> withPrevious >>> sinkPrint
+    where
+    maps    = map fromList $ zipWith zip updates updates
+    updates = map (take 5) (tails [0 :: Int ..])
+
 -- Runners
 
 runWait :: Transport t => Churro t Void Void -> IO ()
@@ -121,9 +134,7 @@ sourceIO cb =
         yeet o Nothing
 
 sinkIO :: Transport t => (o -> IO ()) -> Churro t o Void
-sinkIO cb =
-    buildChurro \i _o -> do
-        mapM_ cb =<< c2l i
+sinkIO cb = buildChurro \i _o -> mapM_ cb =<< c2l i
 
 sinkPrint :: (Transport t, Show a) => Churro t a Void
 sinkPrint = sinkIO print
@@ -138,9 +149,6 @@ processN f =
         for_ cs \x -> mapM_ (yeet o . Just) =<< f x
         yeet o Nothing
 
-processRetry :: Transport t => Natural -> (i -> IO o) -> Churro t i o
-processRetry maxRetries f = arr (0,) >>> processRetry' @SomeException maxRetries f >>> rights
-
 justs :: Transport t => Churro t (Maybe a) a
 justs = mapN (maybe [] pure)
 
@@ -149,6 +157,12 @@ lefts = mapN (either pure (const []))
 
 rights :: Transport t => Churro t (Either a b) b
 rights = mapN (either (const []) pure)
+
+takeC :: (Transport t, Integral n) => n -> Churro t a a
+takeC n = buildChurro \i o -> do
+    l <- replicateM (fromIntegral n) (yank i)
+    yeetList o l
+    yeet o Nothing
 
 mapN :: Transport t => (a -> [b]) -> Churro t a b
 mapN f = processN (return . f)
@@ -170,6 +184,9 @@ withPrevious = buildChurro \i o -> do
 -- | Requeue an item if it fails.
 --   Note: There is an edgecase with Chan transport where a queued retry may not execute
 --         if a source completes and finalises before the item is requeued.
+processRetry :: Transport t => Natural -> (i -> IO o) -> Churro t i o
+processRetry maxRetries f = arr (0,) >>> processRetry' @SomeException maxRetries f >>> rights
+
 processRetry' :: (Exception e, Transport t) => Natural -> (a -> IO o) -> Churro t (Natural, a) (Either e o)
 processRetry' maxRetries f =
     buildChurro \i o -> do
@@ -197,15 +214,15 @@ class Transport t where
     yank     :: t a -> IO a
     yeet     :: t a -> a -> IO ()
     yankList :: t a -> IO [a]
-    yeetList :: t a -> [a] -> IO ()
-    yeetList t = mapM_ (yeet t)
+
+yeetList :: (Foldable t1, Transport t2) => t2 a -> t1 a -> IO ()
+yeetList t = mapM_ (yeet t)
 
 instance Transport Chan where
     flex = newChan
     yank = readChan
     yeet = writeChan
     yankList = getChanContents
-    yeetList = writeList2Chan
 
 instance Transport t => Functor (Churro t a) where
     fmap f c = Churro do
@@ -224,8 +241,10 @@ instance Transport t => Category (Churro t) where
 
         a <- async do
             c2c id fo gi
-            wait fa
             wait ga
+            cancel fa
+            yeet gi Nothing
+            yeet fi Nothing
 
         return (fi, go, a)
 
@@ -259,11 +278,12 @@ c2l = fmap catMaybes . c2l'
 c2l' :: Transport t => t (Maybe a) -> IO [Maybe a]
 c2l' c = takeUntil isNothing <$> yankList c
 
-c2c :: Transport t => (a1 -> a2) -> t (Maybe a1) -> t (Maybe a2) -> IO ()
+c2c :: Transport t => (a1 -> a2) -> t (Maybe a1) -> t (Maybe a2) -> IO (Async ())
 c2c f i o = do
     l <- c2l i
-    l2c o (fmap f l)
-    yeet o Nothing
+    async do
+        l2c o (fmap f l)
+        yeet o Nothing
 
 -- Other Helpers
 
