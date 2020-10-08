@@ -8,12 +8,12 @@
 --
 -- TODO:
 -- 
---   * Recovery/Retry capability
---   * Fix await deadlock
---   * Allow configurable parallelism
---   * Generic Chan functions, then specific newtype
---   * Different transport options, buffered, etc.
+--   * [x] Recovery/Retry capability
+--   * [x] Fix await deadlock
+--   * [x] Generic Chan functions, then specific newtype
+--   * [x] Different transport options, buffered, etc.
 --   * Different transports for sections of the graph
+--   * Allow configurable parallelism
 -- 
 module Churro where
 
