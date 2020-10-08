@@ -40,31 +40,30 @@ import Data.List (tails)
 main :: IO ()
 main = do
 
-    -- runWait @Chan $ sourceList [1..5] >>> delay 0.5 >>> sinkPrint
+    runWaitChan $ sourceList [1::Int ..5] >>> delay 0.5 >>> sinkPrint
 
-    -- c <- newChan
-    -- writeList2Chan c (map Just [1::Int ..10] ++ [Nothing])
-    -- yankAll' c \x -> do
-    --     print x
+    c <- newChan
+    writeList2Chan c (map Just [1::Int ..10] ++ [Nothing])
+    yankAll' c print
 
-    -- runWait @Chan $ sourceList [1::Int ..5] >>> sinkPrint
-    -- runWait @Chan $ sourceList [1::Int ..10] >>> delay 0.3 >>> sinkPrint
-    -- runWait @Chan test0
-    -- runWait @Chan test1
-    -- runWait @Chan test2
-    -- runWait @Chan test3
-    -- runWait @Chan test4
-    -- runWait @Chan test5
-    -- runWait @Chan (id >>> id)
-    -- runWait @Chan id
-    -- runWait @Chan $ sourceList [1 :: Int ..5] >>> withPrevious >>> sinkPrint
-    -- runWait @Chan ( sourceIO (\cb -> replicateM 3 do cb (5 :: Int))
-    --     >>> delay 1
-    --     >>> arr show
-    --     >>> sinkPrint
-    --     )
+    runWaitChan $ sourceList [1::Int ..5] >>> sinkPrint
+    runWaitChan $ sourceList [1::Int ..10] >>> delay 0.3 >>> sinkPrint
+    runWaitChan test0
+    runWaitChan test1
+    runWaitChan test2
+    runWaitChan test3
+    runWaitChan test4
+    runWaitChan test5
+    runWaitChan (id >>> id)
+    runWaitChan id
+    runWaitChan $ sourceList [1 :: Int ..5] >>> withPrevious >>> sinkPrint
+    runWaitChan ( sourceIO (\cb -> replicateM 3 do cb (5 :: Int))
+        >>> delay 1
+        >>> arr show
+        >>> sinkPrint
+        )
 
-    runWait @Chan $ sourceList [1::Int ..1000] >>> takeC (2::Int) >>> sinkPrint
+    runWaitChan test6
     runWait pipeline
     return ()
 
@@ -101,6 +100,9 @@ test5 = sourceList [1 :: Int ..10] >>> arr (0 :: Natural,) >>> processRetry' @So
             then return x
             else error ("oops! " <> show x)
 
+test6 :: Transport t => Churro t Void Void
+test6 = sourceList [1::Int ..] >>> delay 1 >>> takeC (2::Int) >>> sinkPrint
+
 pipeline :: ChurroChan Void Void
 pipeline = sourceList (take 10 maps)
         >>> withPrevious
@@ -113,6 +115,9 @@ pipeline = sourceList (take 10 maps)
     updates = map (take 5) (tails [0 :: Int ..])
 
 -- Runners
+
+runWaitChan :: ChurroChan Void Void -> IO ()
+runWaitChan = runWait
 
 runWait :: Transport t => Churro t Void Void -> IO ()
 runWait x = wait =<< run x
@@ -217,7 +222,7 @@ processRetry' maxRetries f =
             yeet o (Just r)
             case r of
                 Right _ -> return ()
-                Left  _ -> do when (n >= maxRetries) do yeet i (Just (succ n, y))
+                Left  _ -> when (n >= maxRetries) do yeet i (Just (succ n, y))
         yeet o Nothing
 
 -- Data, Classes and Instances
