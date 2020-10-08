@@ -12,8 +12,8 @@
 --   * [x] Fix await deadlock
 --   * [x] Generic Chan functions, then specific newtype
 --   * [x] Different transport options, buffered, etc.
---   * Different transports for sections of the graph
---   * Allow configurable parallelism
+--   * [ ] Different transports for sections of the graph
+--   * [ ] Allow configurable parallelism
 -- 
 module Churro where
 
