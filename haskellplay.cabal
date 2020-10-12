@@ -34,7 +34,8 @@ library haskellplay-lib
                        stm,
                        containers,
                        profunctors,
-                       random
+                       random,
+                       churros
 
 executable haskellplay-exe
   main-is:             Main.hs
