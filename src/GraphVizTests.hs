@@ -10,17 +10,209 @@ main = foo >>= print
 
 
 -- >>> foo
--- DotGraph {strictGraph = False, directedGraph = True, graphID = Nothing, graphStatements = fromList [DN (DotNode {nodeID = "d", nodeAttributes = [Label (StrLabel "D"),Shape BoxShape]}),DE (DotEdge {fromNode = "a", toNode = "b", edgeAttributes = [Label (StrLabel "lol")]}),DE (DotEdge {fromNode = "b", toNode = "d", edgeAttributes = []}),DE (DotEdge {fromNode = "b", toNode = "d", edgeAttributes = []})]}
+-- DotGraph
+--   { strictGraph = False
+--   , directedGraph = True
+--   , graphID = Just (Str "G")
+--   , graphStatements =
+--       fromList
+--         [ GA GraphAttrs { attrs = [ Label (StrLabel "Uniqhash") ] }
+--         , GA GraphAttrs { attrs = [ LabelLoc VTop ] }
+--         , DN
+--             DotNode
+--               { nodeID = "a"
+--               , nodeAttributes = [ Label (StrLabel "Path") , Shape BoxShape ]
+--               }
+--         , DN
+--             DotNode
+--               { nodeID = "y"
+--               , nodeAttributes = [ Label (StrLabel "Path & Changed?") ]
+--               }
+--         , DN
+--             DotNode
+--               { nodeID = "z"
+--               , nodeAttributes = [ Label (StrLabel "Path") , Shape BoxShape ]
+--               }
+--         , DN
+--             DotNode
+--               { nodeID = "x"
+--               , nodeAttributes = [ Label (StrLabel "Path & Contents") ]
+--               }
+--         , DN
+--             DotNode
+--               { nodeID = "m"
+--               , nodeAttributes = [ Label (StrLabel "Map Path Contents") ]
+--               }
+--         , DN
+--             DotNode
+--               { nodeID = "l2"
+--               , nodeAttributes = [ Label (StrLabel "Path & Previous") ]
+--               }
+--         , DN
+--             DotNode
+--               { nodeID = "c"
+--               , nodeAttributes = [ Label (StrLabel "Contents & Previous") ]
+--               }
+--         , DN
+--             DotNode
+--               { nodeID = "m2"
+--               , nodeAttributes = [ Label (StrLabel "Path & Map") ]
+--               }
+--         , DE
+--             DotEdge
+--               { fromNode = "a"
+--               , toNode = "x"
+--               , edgeAttributes = [ Label (StrLabel "") ]
+--               }
+--         , DE
+--             DotEdge
+--               { fromNode = "a"
+--               , toNode = "x"
+--               , edgeAttributes = [ Label (StrLabel "Contents") ]
+--               }
+--         , DE
+--             DotEdge { fromNode = "a" , toNode = "l2" , edgeAttributes = [] }
+--         , DE
+--             DotEdge { fromNode = "a" , toNode = "m2" , edgeAttributes = [] }
+--         , DE
+--             DotEdge
+--               { fromNode = "m"
+--               , toNode = "m2"
+--               , edgeAttributes = [ Label (StrLabel "") ]
+--               }
+--         , DE
+--             DotEdge
+--               { fromNode = "m2"
+--               , toNode = "c"
+--               , edgeAttributes = [ Label (StrLabel "Lookup") ]
+--               }
+--         , DE
+--             DotEdge
+--               { fromNode = "l2"
+--               , toNode = "c"
+--               , edgeAttributes = [ Label (StrLabel "Lookup") ]
+--               }
+--         , DE
+--             DotEdge
+--               { fromNode = "c"
+--               , toNode = "y"
+--               , edgeAttributes = [ Label (StrLabel "Changed? (!=)") ]
+--               }
+--         , DE
+--             DotEdge
+--               { fromNode = "x"
+--               , toNode = "m"
+--               , edgeAttributes = [ Label (StrLabel " Scan Insert {}") ]
+--               }
+--         , DE
+--             DotEdge
+--               { fromNode = "m"
+--               , toNode = "l2"
+--               , edgeAttributes = [ Label (StrLabel "Delay 1") ]
+--               }
+--         , DE
+--             DotEdge
+--               { fromNode = "a"
+--               , toNode = "y"
+--               , edgeAttributes = [ Label (StrLabel "") ]
+--               }
+--         , DE
+--             DotEdge
+--               { fromNode = "y"
+--               , toNode = "z"
+--               , edgeAttributes = [ Label (StrLabel " Emit if Changed") ]
+--               }
+--         ]
+--   }
+-- 
 foo :: IO (DotGraph String)
 foo = readDotFile "test/data/test.dot"
 
 
 -- >>> bar
--- [DotEdge {fromNode = "a", toNode = "b", edgeAttributes = [Label (StrLabel "lol")]},DotEdge {fromNode = "b", toNode = "d", edgeAttributes = []},DotEdge {fromNode = "b", toNode = "d", edgeAttributes = []}]
+-- [ DotEdge
+--     { fromNode = "a"
+--     , toNode = "x"
+--     , edgeAttributes = [ Label (StrLabel "") ]
+--     }
+-- , DotEdge
+--     { fromNode = "a"
+--     , toNode = "x"
+--     , edgeAttributes = [ Label (StrLabel "Contents") ]
+--     }
+-- , DotEdge { fromNode = "a" , toNode = "l2" , edgeAttributes = [] }
+-- , DotEdge { fromNode = "a" , toNode = "m2" , edgeAttributes = [] }
+-- , DotEdge
+--     { fromNode = "m"
+--     , toNode = "m2"
+--     , edgeAttributes = [ Label (StrLabel "") ]
+--     }
+-- , DotEdge
+--     { fromNode = "m2"
+--     , toNode = "c"
+--     , edgeAttributes = [ Label (StrLabel "Lookup") ]
+--     }
+-- , DotEdge
+--     { fromNode = "l2"
+--     , toNode = "c"
+--     , edgeAttributes = [ Label (StrLabel "Lookup") ]
+--     }
+-- , DotEdge
+--     { fromNode = "c"
+--     , toNode = "y"
+--     , edgeAttributes = [ Label (StrLabel "Changed? (!=)") ]
+--     }
+-- , DotEdge
+--     { fromNode = "x"
+--     , toNode = "m"
+--     , edgeAttributes = [ Label (StrLabel " Scan Insert {}") ]
+--     }
+-- , DotEdge
+--     { fromNode = "m"
+--     , toNode = "l2"
+--     , edgeAttributes = [ Label (StrLabel "Delay 1") ]
+--     }
+-- , DotEdge
+--     { fromNode = "a"
+--     , toNode = "y"
+--     , edgeAttributes = [ Label (StrLabel "") ]
+--     }
+-- , DotEdge
+--     { fromNode = "y"
+--     , toNode = "z"
+--     , edgeAttributes = [ Label (StrLabel " Emit if Changed") ]
+--     }
+-- ]
+-- 
 bar :: IO [DotEdge String]
 bar = edgeInformation True <$> foo
 
 -- >>> baz
--- fromList [("a",(fromList [],[])),("b",(fromList [],[])),("d",(fromList [],[Label (StrLabel "D"),Shape BoxShape]))]
+--
+-- fromList
+--   [ ( "a"
+--     , ( fromList [] , [ Label (StrLabel "Path") , Shape BoxShape ] )
+--     )
+--   , ( "c"
+--     , ( fromList [] , [ Label (StrLabel "Contents & Previous") ] )
+--     )
+--   , ( "l2"
+--     , ( fromList [] , [ Label (StrLabel "Path & Previous") ] )
+--     )
+--   , ( "m"
+--     , ( fromList [] , [ Label (StrLabel "Map Path Contents") ] )
+--     )
+--   , ( "m2" , ( fromList [] , [ Label (StrLabel "Path & Map") ] ) )
+--   , ( "x"
+--     , ( fromList [] , [ Label (StrLabel "Path & Contents") ] )
+--     )
+--   , ( "y"
+--     , ( fromList [] , [ Label (StrLabel "Path & Changed?") ] )
+--     )
+--   , ( "z"
+--     , ( fromList [] , [ Label (StrLabel "Path") , Shape BoxShape ] )
+--     )
+--   ]
+-- 
 baz :: IO (NodeLookup String)
 baz = nodeInformation True <$> foo
