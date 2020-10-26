@@ -35,7 +35,9 @@ library haskellplay-lib
                        containers,
                        profunctors,
                        random,
-                       churros
+                       churros,
+                       graphviz,
+                       fgl
 
 executable haskellplay-exe
   main-is:             Main.hs

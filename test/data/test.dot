@@ -1,0 +1,42 @@
+/*
+    ## Uniqhash
+
+    https://github.com/sordina/uniqhash
+
+    Small utility that takes a stream of filepaths and emits them if they changed since previous reference.
+*/
+
+digraph G {
+    label="Uniqhash";
+    labelloc=t;
+
+    a [label="Path", shape=box];
+    y [label="Path & Changed?"]
+    z [label="Path", shape=box];
+    x [label="Path & Contents"];
+    m [label="Map Path Contents"];
+    l2 [label="Path & Previous"];
+    c [label="Contents & Previous"];
+    m2 [label="Path & Map"];
+
+    a -> x [label=""];
+    a -> x [label="Contents"];
+
+    a -> l2;
+
+    a -> m2;
+    m -> m2 [label=""];
+    m2 -> c [label="Lookup"];
+
+    l2 -> c [label="Lookup"];
+
+    c -> y [label="Changed? (!=)"];
+
+    x -> m [label=" Scan Insert {}"];
+    m -> l2 [label="Delay 1"];
+
+    a -> y [label=""];
+    y -> z [label=" Emit if Changed"];
+
+
+}
