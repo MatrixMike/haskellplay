@@ -30,3 +30,7 @@ main = interact $
     . map (tail . map read)
     . splitOn [[]]
     . lines
+
+-- >>> 1 + 1
+-- 2
+

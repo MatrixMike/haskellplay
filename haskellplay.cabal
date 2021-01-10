@@ -14,6 +14,7 @@ library haskellplay-lib
   hs-source-dirs:      src
   default-language:    Haskell2010
   other-modules:       Module_1601014331_80495,
+                       Module_1609992141_20332,
                        ConduitResourceExperiment
   build-depends:       base >=4.14 && <4.15,
                        megaparsec,
@@ -44,7 +45,9 @@ library haskellplay-lib
                        split,
                        free,
                        vector,
-                       primitive
+                       primitive,
+                       network-uri,
+                       parser-combinators
 
 executable haskellplay-exe
   main-is:             Main.hs

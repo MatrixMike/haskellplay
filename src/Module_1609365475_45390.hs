@@ -36,9 +36,10 @@ look l = a * b
     a = l V.! 1
     b = l V.! a
 
-iterateM_ :: (Eq t, Num t, Monad m, Enum t) => t -> (a -> m a) -> a -> m a
-iterateM_ 0 _ i = return i
-iterateM_ n f i = f i >>= iterateM_ (pred n) f
+iterateM_ :: (Ord t, Num t, Enum t, Monad m) => t -> (a -> m a) -> a -> m a
+iterateM_ n f i
+    | n < 1     = return i
+    | otherwise = f i >>= iterateM_ (pred n) f
 
 prep :: [Int] -> V.Vector Int
 prep =
