@@ -15,6 +15,8 @@ library haskellplay-lib
   default-language:    Haskell2010
   other-modules:       Module_1601014331_80495,
                        Module_1609992141_20332,
+                       Module_1611717039_62866,
+                       LambdaCube_SimpleEasy,
                        ConduitResourceExperiment
   build-depends:       base >=4.14 && <4.15,
                        megaparsec,
@@ -47,7 +49,9 @@ library haskellplay-lib
                        vector,
                        primitive,
                        network-uri,
-                       parser-combinators
+                       parser-combinators,
+                       reducers,
+                       endo
 
 executable haskellplay-exe
   main-is:             Main.hs
