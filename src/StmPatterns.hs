@@ -19,6 +19,7 @@ import Control.Monad.IO.Class
 import Control.Concurrent.Async
 import Control.Monad (forever, join, when)
 import Control.Concurrent (threadDelay)
+import Control.Monad.Loops (iterateM_)
 
 
 -- Ideas for server:
@@ -138,14 +139,12 @@ f <$$> x = do
     y <- f x'
     t <- newTVarIO y
     async do 
-        let ever p = do
-                x'' <- atomically $ getNew p x
-                when (p /= x'') do
-                    y' <- f x''
-                    atomically $ writeTVar t y'
-                ever x''
-            in
-            ever x'
+        flip iterateM_ x' \p -> do
+            x'' <- atomically $ getNew p x
+            when (p /= x'') do
+                y' <- f x''
+                atomically $ writeTVar t y'
+            pure x''
     pure (readTVar t)
 
 server :: STM Config -> IO ()
