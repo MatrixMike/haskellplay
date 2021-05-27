@@ -17,7 +17,7 @@ import Data.Time.Clock ( getCurrentTime, UTCTime )
 import Data.Text.Lazy
 import Control.Monad.IO.Class
 import Control.Concurrent.Async
-import Control.Monad (forever, join)
+import Control.Monad (forever, join, when)
 import Control.Concurrent (threadDelay)
 
 
@@ -138,10 +138,14 @@ f <$$> x = do
     y <- f x'
     t <- newTVarIO y
     async do 
-        forever do
-            x' <- atomically $ getNew x' x
-            y <- f x'
-            atomically $ writeTVar t y
+        let ever p = do
+                x'' <- atomically $ getNew p x
+                when (p /= x'') do
+                    y' <- f x''
+                    atomically $ writeTVar t y'
+                ever x''
+            in
+            ever x'
     pure (readTVar t)
 
 server :: STM Config -> IO ()
