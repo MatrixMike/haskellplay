@@ -17,6 +17,7 @@ library haskellplay-lib
                        Module_1609992141_20332,
                        Module_1611717039_62866,
                        Module_1614079094_14907,
+                       Module_1625118584_96472,
                        LambdaCube_SimpleEasy,
                        ConduitResourceExperiment,
                        HiggledyTest,
