@@ -98,3 +98,44 @@ example fun1 fun2 a = (adaptor fun2) (fun1 a)
 
 
 
+
+
+
+data State s a = State (s -> (a, s))
+
+runState :: State s a -> (s -> (a, s))
+runState (State f) = f
+
+instance Functor (State s) where
+
+instance Applicative (State s) where
+    pure a = State (\s -> (a, s))
+
+instance Monad (State s) where
+    (>>= ):: State s a -> (a -> State s b) -> State s b
+    State f >>= g = State $ \x ->
+        let
+            (a, s)     = f x
+            (State g') = g a
+        in
+            g' s
+
+loopM :: Monad m => [a] -> (a -> m b) -> m ()
+loopM [] _ = pure ()
+loopM (h:t) m = do
+    _ <- m h
+    loopM t m
+
+multiplyBy :: Int -> State Int ()
+multiplyBy x = State $ \y -> ((), x * y)
+
+factorial :: Int -> State Int ()
+factorial n = do
+    loopM [1..n] $ \x -> do
+        multiplyBy x
+
+main' :: IO ()
+main' = do
+    let result = runState (factorial 5) 1
+    print result
+
