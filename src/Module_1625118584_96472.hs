@@ -2,6 +2,7 @@
 
 module Module_1625118584_96472 where
 
+import Debug.Trace (trace, traceShow, traceShowId)
 import Control.Applicative
 import Control.Monad (join)
 
@@ -103,6 +104,10 @@ example fun1 fun2 a = (adaptor fun2) (fun1 a)
 
 data State s a = State (s -> (a, s))
 
+instance Show (State s a) where
+    show (State f) = "some state??? Dunno lol"
+
+
 runState :: State s a -> (s -> (a, s))
 runState (State f) = f
 
@@ -111,14 +116,14 @@ instance Functor (State s) where
 instance Applicative (State s) where
     pure a = State (\s -> (a, s))
 
-instance Monad (State s) where
+instance Show s => Monad (State s) where
     (>>= ):: State s a -> (a -> State s b) -> State s b
     State f >>= g = State $ \x ->
         let
             (a, s)     = f x
             (State g') = g a
         in
-            g' s
+            traceShow s (g' s)
 
 loopM :: Monad m => [a] -> (a -> m b) -> m ()
 loopM [] _ = pure ()
@@ -132,10 +137,13 @@ multiplyBy x = State $ \y -> ((), x * y)
 factorial :: Int -> State Int ()
 factorial n = do
     loopM [1..n] $ \x -> do
-        multiplyBy x
+        do
+            multiplyBy x
+            multiplyBy x
 
-main' :: IO ()
-main' = do
-    let result = runState (factorial 5) 1
-    print result
+main' :: ((), Int)
+main' = runState (factorial 5) 1
+
+-- >>> main' 
+-- ((),14400)
 
