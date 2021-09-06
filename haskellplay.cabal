@@ -22,7 +22,8 @@ library haskellplay-lib
                        ConduitResourceExperiment,
                        HiggledyTest,
                        Stern_Brocot_Pi_Pi_Pi_Pi,
-                       StmPatterns
+                       StmPatterns,
+                       Module_1628141420_3219
   build-depends:       base >=4.14 && <4.15,
                        megaparsec,
                        websockets,
