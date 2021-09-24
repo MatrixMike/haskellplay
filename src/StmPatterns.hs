@@ -5,7 +5,7 @@
 module Main where
 
 import Control.Concurrent.STM
-import Control.Concurrent.STM.TVar
+-- import Control.Concurrent.STM.TVar
 
 
 -- App
