@@ -6,17 +6,16 @@
 
 module Module_1637009548_87901 where
 
-import Control.Applicative
-import Control.Monad
+import Control.Applicative (Alternative ((<|>)))
+import Control.Monad (join)
 import qualified Data.Aeson as J
-import qualified Data.Aeson.Types as J
-import qualified Data.Aeson.KeyMap as J
 import qualified Data.Aeson.Key as J
+import qualified Data.Aeson.KeyMap as J
+import qualified Data.Aeson.Types as J
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as BL
-import Text.RawString.QQ
+import Text.RawString.QQ (r)
 import qualified Text.XML.Generator as X
-
 type Result = J.Parser
 
 stop :: Result a
