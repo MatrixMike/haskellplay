@@ -29,12 +29,6 @@ as p s = do
         then pure ()
         else stop
 
-asString :: J.Parser String -> String -> J.Parser ()
-asString = as
-
-docTag :: J.Object -> Result ()
-docTag o = o J..: "tag" `asString` "doc"
-
 mkInfo :: J.Value -> Result X.DocInfo
 mkInfo v = flip (J.withObject "DocInfo") v \o -> do
     s    <- o J..: "standalone"
@@ -75,7 +69,6 @@ docTopLevelElement o = o J..: "elem" >>= mkElem
 jsonToXml :: J.Value -> Result (X.Xml X.Doc)
 jsonToXml = \case
     (J.Object o) -> do
-        docTag o
         e <- docTopLevelElement o
         i <- docInfo o
         pure $ X.doc i e
@@ -85,6 +78,9 @@ jsonToXml = \case
 
 -- TESTING:
 
+
+-- >>> testJsonToXml sampleAeson
+-- "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<foobar bla=\"alskjhdflkasjhdf\"\n><plz a=\"b\" c=\"d\"\n></plz\n></foobar\n>"
 
 sampleAeson :: BL.ByteString 
 sampleAeson = [r|
@@ -108,9 +104,6 @@ testJsonToXml s = case J.parse (\() -> eitherP (J.eitherDecode s) >>= jsonToXml)
     J.Success xml -> let rendered = X.xrender @_ @B.ByteString xml
         in B.putStrLn rendered >> pure rendered
 
-
--- >>> testJsonToXml sampleAeson
--- "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<foobar bla=\"alskjhdflkasjhdf\"\n></foobar\n>"
 
 -- >>> main
 -- "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<people\n><person age=\"32\"\n>Stefan</person\n><person age=\"4\"\n>Judith</person\n></people\n>"
