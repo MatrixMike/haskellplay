@@ -23,7 +23,8 @@ library haskellplay-lib
                        HiggledyTest,
                        Stern_Brocot_Pi_Pi_Pi_Pi,
                        Module_1628141420_3219,
-                       Module_1632377607_38084
+                       Module_1632377607_38084,
+                       Module_1635404983_1353
   build-depends:       base >=4.14 && <4.15,
                        megaparsec,
                        websockets,
@@ -63,7 +64,10 @@ library haskellplay-lib
                        higgledy,
                        semver, 
                        monad-loops,
-                       scotty
+                       scotty,
+                       gdp,
+                       xmlgen,
+                       raw-strings-qq
 
 executable haskellplay-exe
   main-is:             Main.hs
