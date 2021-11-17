@@ -55,12 +55,15 @@ mkAttributes a@(J.Array  _) = mapM mkAttribute  =<< J.parseJSON a
 mkAttributes   (J.Object o) = mapM mkAttribute' (J.toList o)
 mkAttributes _              = stop
 
-mkElem :: J.Object -> Result (X.Xml X.Elem)
-mkElem o = do
-    t <- o J..: "tag"
-    a <-      mkAttributes =<< o J..:? "attributes" J..!= J.Array mempty
-    c <- mapM mkElem       =<< o J..:? "children"   J..!= []
-    pure $ X.xelem t (X.xattrs a, X.xelems c)
+mkElem :: J.Value -> Result (X.Xml X.Elem)
+mkElem = \case
+    J.String s -> pure (X.xtext s)
+    J.Object o -> do
+        t <- o J..: "tag"
+        a <-      mkAttributes =<< o J..:? "attributes" J..!= J.Array mempty
+        c <- mapM mkElem       =<< o J..:? "children"   J..!= []
+        pure $ X.xelem t (X.xattrs a, X.xelems c)
+    _ -> stop
 
 docTopLevelElement :: J.Object -> Result (X.Xml X.Elem)
 docTopLevelElement o = o J..: "elem" >>= mkElem
@@ -79,7 +82,7 @@ jsonToXml = \case
 
 
 -- >>> testJsonToXml sampleAeson
--- "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<foobar bla=\"alskjhdflkasjhdf\"\n><plz a=\"b\" c=\"d\"\n></plz\n></foobar\n>"
+-- "Oops!"
 
 sampleAeson :: BL.ByteString 
 sampleAeson = [r|
@@ -88,7 +91,7 @@ sampleAeson = [r|
             "elem": {
                 "tag": "foobar",
                 "attributes": [{"name": "bla", "content": "alskjhdflkasjhdf"}],
-                "children": [{"tag": "plz", "attributes": {"a": "b", "c": "d"}}]
+                "children": ["hello\n", {"tag": "plz", "attributes": {"a": "b", "c": "d"}}, "world"]
             }
         }
     |]
@@ -96,9 +99,8 @@ sampleAeson = [r|
 eitherP :: (Monad m, MonadFail m) => Either String r -> m r
 eitherP = either fail pure
 
-
 testJsonToXml :: BL.ByteString -> IO B.ByteString
-testJsonToXml s = case J.parse (\() -> eitherP (J.eitherDecode s) >>= jsonToXml) () of
+testJsonToXml s = case J.parse (\() -> either fail pure (J.eitherDecode s) >>= jsonToXml) () of
     J.Error err -> print @String err >> pure "Oops!"
     J.Success xml -> let rendered = X.xrender @_ @B.ByteString xml
         in B.putStrLn rendered >> pure rendered
