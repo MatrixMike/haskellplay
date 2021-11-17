@@ -82,7 +82,7 @@ jsonToXml = \case
 
 
 -- >>> testJsonToXml sampleAeson
--- "Oops!"
+-- "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<foobar bla=\"alskjhdflkasjhdf\"\n>hello\n<plz a=\"b\" c=\"d\"\n></plz\n>world</foobar\n>"
 
 sampleAeson :: BL.ByteString 
 sampleAeson = [r|
