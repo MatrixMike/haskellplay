@@ -4,5 +4,7 @@ cradle:
         config:
           cradle:
             cabal:
+              - path: "./src/Patchbay.hs"
+                component: "exe:patchbay-hs"
               - path: "./src"
                 component: "lib:haskellplay-lib"

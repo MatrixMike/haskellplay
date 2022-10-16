@@ -55,8 +55,8 @@ handler channels req final = do
   Prelude.putStrLn "Query:"
   print qs
 
-  let pubsub     = maybe False (== "true") $ join $ Prelude.lookup "pubsub" qs
-  let bufferSize = maybe 10 (fromIntegral . fst)  $ ((join $ Prelude.lookup "buffer" qs) >>= C8.readInt)
+  let pubsub     = (== Just "true") $ join $ Prelude.lookup "pubsub" qs
+  let bufferSize = maybe 10 (fromIntegral . fst) (join (Prelude.lookup "buffer" qs) >>= C8.readInt)
   let headers    = mkHeaders qs
 
   when pubsub do Prelude.putStrLn "Pub-Sub Enabled!"
