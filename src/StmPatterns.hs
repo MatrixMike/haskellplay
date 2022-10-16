@@ -119,7 +119,7 @@ main :: IO ()
 main = do
     c <- newTVarIO =<< getConfig
 
-    async do
+    _ <- async do
         forever do
             threadDelay 1000000
             c' <- getConfig

@@ -25,7 +25,7 @@ library haskellplay-lib
                        Module_1628141420_3219,
                        Module_1632377607_38084,
                        Module_1635404983_1353
-  build-depends:       base >=4.14 && <4.15,
+  build-depends:       base >=4.14 && <4.17,
                        megaparsec,
                        websockets,
                        aeson,
@@ -46,7 +46,7 @@ library haskellplay-lib
                        containers,
                        profunctors,
                        random,
-                       churros,
+                       churros >=0.1.6.0,
                        --  graphviz,
                        fgl,
                        array,
@@ -59,7 +59,6 @@ library haskellplay-lib
                        network-uri,
                        parser-combinators,
                        reducers,
-                       endo,
                        hmatrix,
                        higgledy,
                        semver, 
@@ -73,7 +72,7 @@ executable haskellplay-exe
   main-is:             Main.hs
   hs-source-dirs:      .
   default-language:    Haskell2010
-  build-depends:       base >=4.14 && <4.15
+  build-depends:       base >=4.14 && <4.17
 
 executable advent22b
   main-is: Module_1609247579_24398.hs
@@ -81,7 +80,7 @@ executable advent22b
   default-language:    Haskell2010
   ghc-options: -O2
   build-depends:
-    base >=4.14 && <4.15,
+    base >=4.14 && <4.17,
     split,
     containers,
     MemoTrie
@@ -92,7 +91,7 @@ executable advent23b
   default-language: Haskell2010
   ghc-options: -O2
   build-depends:
-    base >=4.14 && <4.15,
+    base >=4.14 && <4.17,
     split,
     containers,
     vector,
@@ -100,16 +99,20 @@ executable advent23b
 
 
 executable patchbay-hs
-  main-is: Pathcbay.hs
+  main-is: Patchbay.hs
   hs-source-dirs:   src
   default-language: Haskell2010
   ghc-options: -O2
   build-depends:
-    base >=4.14 && <4.15,
+    base >=4.14 && <4.17,
     containers,
     async,
     wai,
-    warp
+    warp,
+    bytestring,
+    case-insensitive,
+    http-types,
+    stm
 
 executable stm-patterns
   main-is: StmPatterns.hs
@@ -117,7 +120,7 @@ executable stm-patterns
   default-language: Haskell2010
   ghc-options: -O2
   build-depends:
-    base >=4.14 && <4.15,
+    base >=4.14 && <4.17,
     split,
     containers,
     monad-loops,
@@ -133,7 +136,7 @@ executable grammar-graph
   default-language: Haskell2010
   ghc-options: -O2
   build-depends:
-    base >=4.14 && <4.15,
+    base >=4.14 && <4.17,
     containers,
     async,
     split,

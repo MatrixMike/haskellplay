@@ -12,7 +12,7 @@
 --   Shell 2: curl 'localhost:9000/test2?pubsub=true'
 --   Shell 3: curl -s 'localhost:9000/test2?pubsub=true' -X POST -T /dev/stdin
 
-module Patchbay where
+module Main where
 
 import qualified Control.Concurrent.STM         as STM
 
