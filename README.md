@@ -1,4 +1,4 @@
-# HASKALPLAY
+# haskellplay
 
 A small repo for jumping into experimental code instantly, but listing dependencies, etc. explicitly.
 
